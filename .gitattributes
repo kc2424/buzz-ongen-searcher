@@ -1,0 +1,6 @@
+# GitHub Actions は Linux 上で動くので、改行コードはLFに統一する。
+# （CRLFのまま上がるとシェルスクリプト部分が壊れることがある）
+* text=auto eol=lf
+
+# .bat は Windows でしか使わないのでCRLFのまま
+*.bat text eol=crlf

@@ -1,0 +1,5 @@
+# ローカル版の履歴DB。GitHubには data/*.json の方を置くので上げない
+buzz.db
+
+__pycache__/
+*.pyc

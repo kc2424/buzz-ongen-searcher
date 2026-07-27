@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>バズ音源サーチャー</title>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --panel: #15151f;
+    --panel-2: #1d1d2a;
+    --line: #2b2b3c;
+    --text: #f2f2f7;
+    --muted: #8c8ca3;
+    --pink: #ff0050;
+    --cyan: #00f2ea;
+    --up: #38e07b;
+    --down: #6b6b80;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Segoe UI", "Yu Gothic UI", "Hiragino Sans", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: inherit; }
+
+  header {
+    position: sticky; top: 0; z-index: 20;
+    background: rgba(10,10,15,.88);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--line);
+    padding: 14px 20px 0;
+  }
+  .brand { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  h1 {
+    margin: 0; font-size: 22px; letter-spacing: -.02em;
+    background: linear-gradient(92deg, var(--pink), var(--cyan));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .stamp { font-size: 12px; color: var(--muted); }
+  .spacer { flex: 1; }
+  button {
+    font: inherit; color: inherit; cursor: pointer;
+    background: var(--panel-2); border: 1px solid var(--line);
+    border-radius: 999px; padding: 7px 15px; transition: .15s;
+  }
+  button:hover { border-color: var(--pink); }
+  button:disabled { opacity: .5; cursor: default; }
+
+  nav { display: flex; gap: 4px; margin-top: 14px; }
+  nav button {
+    border: 0; background: none; border-radius: 0;
+    padding: 10px 4px; margin-right: 20px;
+    color: var(--muted); border-bottom: 2px solid transparent;
+  }
+  nav button.on { color: var(--text); border-bottom-color: var(--pink); }
+
+  main { padding: 22px 20px 80px; max-width: 1500px; margin: 0 auto; }
+
+  .note {
+    background: var(--panel); border: 1px solid var(--line);
+    border-left: 3px solid var(--cyan);
+    padding: 13px 16px; border-radius: 8px;
+    font-size: 13px; line-height: 1.7; color: var(--muted);
+    margin-bottom: 22px;
+  }
+  .note b { color: var(--text); }
+  .err { border-left-color: var(--pink); color: #ffb3c6; }
+
+  .searchbar { display: flex; gap: 8px; margin-bottom: 22px; }
+  .searchbar input {
+    flex: 1; font: inherit; color: var(--text);
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 999px; padding: 11px 20px; outline: none;
+  }
+  .searchbar input:focus { border-color: var(--cyan); }
+
+  .grid {
+    display: grid; gap: 18px;
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  }
+
+  .card {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 14px; overflow: hidden;
+    display: flex; flex-direction: column; transition: .18s;
+  }
+  .card:hover { border-color: #4a4a66; transform: translateY(-3px); }
+  .card.playing { border-color: var(--cyan); }
+
+  .art { position: relative; aspect-ratio: 1; background: var(--panel-2); }
+  .art img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .art .play {
+    position: absolute; inset: 0; border: 0; border-radius: 0;
+    background: rgba(0,0,0,.35); opacity: 0; transition: .15s;
+    display: grid; place-items: center; font-size: 40px; color: #fff;
+  }
+  .art:hover .play, .card.playing .play { opacity: 1; }
+  .art .play:hover { background: rgba(0,0,0,.55); }
+
+  .rank {
+    position: absolute; left: 8px; top: 8px;
+    background: rgba(0,0,0,.72); border-radius: 8px;
+    padding: 3px 9px; font-size: 15px; font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .badges {
+    position: absolute; right: 8px; top: 8px;
+    display: flex; flex-direction: column; align-items: flex-end; gap: 5px;
+  }
+  .badge {
+    font-size: 11px; font-weight: 700; padding: 3px 8px;
+    border-radius: 999px; letter-spacing: .02em;
+  }
+  .b-up   { background: var(--up); color: #04210f; }
+  .b-new  { background: var(--pink); color: #fff; }
+  .b-fresh{ background: var(--cyan); color: #003330; }
+
+  .body { padding: 12px 13px 13px; display: flex; flex-direction: column; gap: 3px; flex: 1; }
+  .title { font-size: 14px; font-weight: 600; line-height: 1.4; }
+  .artist { font-size: 12.5px; color: var(--muted); }
+  .meta { font-size: 11px; color: var(--down); margin-top: 4px; }
+
+  .links { display: flex; gap: 6px; margin-top: 11px; }
+  .links button {
+    flex: 1; padding: 6px 0; font-size: 11.5px;
+    background: var(--panel-2); border-radius: 8px;
+  }
+  .links .tt:hover { border-color: var(--pink); color: var(--pink); }
+  .links .yt:hover { border-color: #ff4444; color: #ff6666; }
+  .links .hi:hover { border-color: var(--cyan); color: var(--cyan); }
+
+  .empty { color: var(--muted); padding: 60px 0; text-align: center; }
+
+  dialog {
+    background: var(--panel); color: var(--text);
+    border: 1px solid var(--line); border-radius: 16px;
+    padding: 24px; max-width: 560px; width: calc(100% - 40px);
+  }
+  dialog::backdrop { background: rgba(0,0,0,.7); }
+  dialog h3 { margin: 0 0 2px; font-size: 17px; }
+  dialog .sub { color: var(--muted); font-size: 13px; margin-bottom: 18px; }
+  dialog .close { margin-top: 18px; width: 100%; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <h1>バズ音源サーチャー</h1>
+    <span class="stamp" id="stamp"></span>
+    <span class="spacer"></span>
+    <button id="refresh">↻ 今すぐ更新</button>
+  </div>
+  <nav>
+    <button data-tab="buzz" class="on">🔥 急上昇</button>
+    <button data-tab="chart">📈 ランキング100</button>
+    <button data-tab="search">🔍 曲を検索</button>
+  </nav>
+</header>
+
+<main>
+  <div id="notes"></div>
+  <div class="searchbar" id="searchbar" hidden>
+    <input id="q" type="search" placeholder="曲名・アーティスト名で検索（例: 米津玄師）" autocomplete="off">
+    <button id="go">検索</button>
+  </div>
+  <div class="grid" id="grid"></div>
+  <div class="empty" id="empty" hidden></div>
+</main>
+
+<dialog id="dlg">
+  <h3 id="dlg-title"></h3>
+  <div class="sub" id="dlg-sub"></div>
+  <div id="dlg-body"></div>
+  <button class="close" onclick="document.getElementById('dlg').close()">閉じる</button>
+</dialog>
+
+<audio id="audio"></audio>
+
+<script>
+const $ = s => document.querySelector(s);
+const audio = $('#audio');
+let chart = null, tab = 'buzz', playingId = null;
+
+const esc = s => String(s ?? '').replace(/[&<>"']/g,
+  c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+// ---------- 再生 ----------
+function toggle(id, url) {
+  if (!url) return;
+  if (playingId === id) { audio.pause(); playingId = null; paint(); return; }
+  audio.src = url;
+  audio.play().catch(() => {});
+  playingId = id;
+  paint();
+}
+audio.addEventListener('ended', () => { playingId = null; paint(); });
+
+// ---------- 外部リンク ----------
+const term = s => encodeURIComponent(`${s.name} ${s.artist}`);
+function openTikTok(s) { window.open(`https://www.tiktok.com/search?q=${term(s)}`, '_blank'); }
+function openShorts(s) { window.open(`https://www.youtube.com/results?search_query=${term(s)}%20%23shorts`, '_blank'); }
+
+// ---------- 順位推移 ----------
+async function showHistory(id) {
+  const d = await (await fetch('/api/history?id=' + encodeURIComponent(id))).json();
+  $('#dlg-title').textContent = d.song ? d.song.name : '順位の推移';
+  $('#dlg-sub').textContent = d.song ? d.song.artist : '';
+  const pts = d.points || [];
+
+  if (pts.length < 2) {
+    $('#dlg-body').innerHTML =
+      `<div class="note">記録が <b>${pts.length}日分</b> しかないため、まだグラフを描けません。` +
+      `毎日このアプリを起動すると、その日の順位が1点ずつ貯まっていきます。</div>`;
+  } else {
+    const W = 500, H = 200, P = 34;
+    const maxR = Math.max(...pts.map(p => p.rank), 10);
+    const x = i => P + i * (W - P * 2) / (pts.length - 1);
+    const y = r => P + (r - 1) * (H - P * 2) / (maxR - 1 || 1);
+    const line = pts.map((p, i) => `${x(i)},${y(p.rank)}`).join(' ');
+    const dots = pts.map((p, i) =>
+      `<circle cx="${x(i)}" cy="${y(p.rank)}" r="4" fill="#00f2ea"><title>${p.date} — ${p.rank}位</title></circle>`
+    ).join('');
+    $('#dlg-body').innerHTML = `
+      <svg viewBox="0 0 ${W} ${H}" style="width:100%;background:#0f0f18;border-radius:10px">
+        <text x="6" y="${P + 4}" fill="#8c8ca3" font-size="11">1位</text>
+        <text x="6" y="${H - P + 4}" fill="#8c8ca3" font-size="11">${maxR}位</text>
+        <polyline points="${line}" fill="none" stroke="#ff0050" stroke-width="2.5"
+                  stroke-linejoin="round" stroke-linecap="round"/>
+        ${dots}
+      </svg>
+      <div class="meta" style="text-align:center;margin-top:8px;color:#8c8ca3;font-size:12px">
+        ${pts[0].date} 〜 ${pts[pts.length - 1].date}（${pts.length}日分）
+      </div>`;
+  }
+  $('#dlg').showModal();
+}
+
+// ---------- カード ----------
+function card(s) {
+  const badges = [];
+  if (s.isBuzzing) badges.push(`<span class="badge b-up">▲${s.delta}</span>`);
+  else if (s.delta > 0) badges.push(`<span class="badge b-up" style="background:#245c3a;color:#9ff0bd">▲${s.delta}</span>`);
+  if (s.isNew) badges.push(`<span class="badge b-new">NEW</span>`);
+  else if (s.isFresh) badges.push(`<span class="badge b-fresh">新譜</span>`);
+
+  const meta = [];
+  if (s.rank && s.prevRank) meta.push(`前回 ${s.prevRank}位`);
+  if (s.daysSinceRelease !== null && s.daysSinceRelease !== undefined)
+    meta.push(s.daysSinceRelease === 0 ? '本日リリース' : `リリース${s.daysSinceRelease}日目`);
+  if (s.genre) meta.push(s.genre);
+
+  const art = s.artwork
+    ? `<img src="${esc(s.artwork)}" alt="" loading="lazy">`
+    : `<div style="width:100%;height:100%"></div>`;
+
+  return `
+    <div class="card ${playingId === s.id ? 'playing' : ''}" data-id="${esc(s.id)}">
+      <div class="art">
+        ${art}
+        ${s.rank ? `<div class="rank">${s.rank}</div>` : ''}
+        <div class="badges">${badges.join('')}</div>
+        ${s.preview ? `<button class="play" data-act="play">${playingId === s.id ? '❚❚' : '▶'}</button>` : ''}
+      </div>
+      <div class="body">
+        <div class="title">${esc(s.name)}</div>
+        <div class="artist">${esc(s.artist)}</div>
+        <div class="meta">${esc(meta.join(' ・ '))}</div>
+        <div class="links">
+          <button class="tt" data-act="tt">TikTok</button>
+          <button class="yt" data-act="yt">Shorts</button>
+          ${s.hasHistory !== false ? `<button class="hi" data-act="hi">推移</button>` : ''}
+        </div>
+      </div>
+    </div>`;
+}
+
+// クリックはグリッドに1つだけ委譲する
+$('#grid').addEventListener('click', e => {
+  const btn = e.target.closest('button[data-act]');
+  if (!btn) return;
+  const id = btn.closest('.card').dataset.id;
+  const s = (current() || []).find(x => String(x.id) === id);
+  if (!s) return;
+  ({ play: () => toggle(s.id, s.preview),
+     tt:   () => openTikTok(s),
+     yt:   () => openShorts(s),
+     hi:   () => showHistory(s.id) })[btn.dataset.act]();
+});
+
+// ---------- 描画 ----------
+let searchResult = null;
+
+function current() {
+  if (tab === 'search') return searchResult;
+  if (!chart) return null;
+  if (tab === 'chart') return chart.songs;
+  const buzz = chart.songs.filter(s => s.isBuzzing || s.isNew);
+  if (buzz.length) return buzz.sort((a, b) => (b.delta ?? 999) - (a.delta ?? 999));
+  return chart.songs.filter(s => s.isFresh);
+}
+
+function paint() {
+  const notes = [];
+  if (chart && chart.date) {
+    $('#stamp').textContent = `${chart.date} 時点 ・ 記録 ${chart.history_days}日分`;
+  }
+
+  if (tab === 'buzz' && chart) {
+    if (!chart.compared_to) {
+      notes.push(`<div class="note">まだ <b>1日分</b> しか記録がないので、順位の変動を計算できません。` +
+        `明日もう一度起動すると「昨日より○位上がった曲」が出ます。` +
+        `<br>それまでは代わりに <b>直近30日以内にリリースされた曲</b>（＝バズり候補）を表示しています。</div>`);
+    } else {
+      notes.push(`<div class="note"><b>${chart.compared_to}</b> と比べて ` +
+        `<b>${chart.buzz_threshold}位以上</b> 上がった曲、または新しくランクインした曲です。` +
+        `気になったら「TikTok」「Shorts」ボタンで実際の使われ方を確認できます。</div>`);
+    }
+  }
+  if (tab === 'search' && !searchResult) {
+    notes.push(`<div class="note">曲名やアーティスト名で検索できます。` +
+      `ランキング100位内の曲には順位と推移も表示されます。</div>`);
+  }
+  $('#notes').innerHTML = notes.join('');
+  $('#searchbar').hidden = tab !== 'search';
+
+  const list = current();
+  const grid = $('#grid'), empty = $('#empty');
+  if (list === null) { grid.innerHTML = ''; empty.hidden = false; empty.textContent = '読み込み中 ...'; return; }
+  if (!list.length) {
+    grid.innerHTML = ''; empty.hidden = false;
+    empty.textContent = tab === 'search' ? '見つかりませんでした。' : '該当する曲がありません。';
+    return;
+  }
+  empty.hidden = true;
+  grid.innerHTML = list.map(card).join('');
+}
+
+// ---------- 通信 ----------
+async function load(url) {
+  try {
+    const r = await fetch(url);
+    const d = await r.json();
+    if (d.error) { $('#notes').innerHTML = `<div class="note err">${esc(d.error)}</div>`; return null; }
+    return d;
+  } catch (e) {
+    $('#notes').innerHTML = `<div class="note err">サーバーに接続できませんでした: ${esc(e.message)}</div>`;
+    return null;
+  }
+}
+
+async function runSearch() {
+  const q = $('#q').value.trim();
+  if (!q) return;
+  $('#empty').hidden = false; $('#empty').textContent = '検索中 ...'; $('#grid').innerHTML = '';
+  const d = await load('/api/search?q=' + encodeURIComponent(q));
+  searchResult = d ? d.songs : [];
+  paint();
+}
+
+// ---------- 起動 ----------
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
+  tab = b.dataset.tab;
+  document.querySelectorAll('nav button').forEach(x => x.classList.toggle('on', x === b));
+  paint();
+});
+$('#go').onclick = runSearch;
+$('#q').addEventListener('keydown', e => { if (e.key === 'Enter') runSearch(); });
+$('#refresh').onclick = async () => {
+  const b = $('#refresh');
+  b.disabled = true; b.textContent = '取得中 ...';
+  const d = await load('/api/refresh');
+  if (d) chart = d;
+  b.disabled = false; b.textContent = '↻ 今すぐ更新';
+  paint();
+};
+
+paint();
+load('/api/chart').then(d => { chart = d; paint(); });
+</script>
+</body>
+</html>
