@@ -11,6 +11,8 @@ Python標準ライブラリのみ。pip install 不要。
 """
 
 import json
+import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta, timezone
@@ -23,7 +25,10 @@ CHART_PATH = DATA / "chart.json"
 
 CHART_URL = "https://rss.applemarketingtools.com/api/v2/jp/music/most-played/100/songs.json"
 LOOKUP_URL = "https://itunes.apple.com/lookup"
-UA = "BuzzOngenSearcher/1.0 (personal use)"
+# GitHub ActionsのIPはデータセンター扱いされ、独自UAだと塞き止められる/固まる
+# ことがあるため、実ブラウザに近いUAを使う
+UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+      "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
 
 # GitHub Actions はUTCで動くので、日付は必ずJSTで決める
 JST = timezone(timedelta(hours=9))
@@ -33,12 +38,21 @@ FRESH_DAYS = 30      # リリース何日以内なら「新譜」バッジを付
 KEEP_DAYS = 90       # 履歴を何日分保持するか
 
 
-def get_json(url, params=None, timeout=30):
+def get_json(url, params=None, timeout=20, retries=3):
     if params:
         url = url + "?" + urllib.parse.urlencode(params)
     req = urllib.request.Request(url, headers={"User-Agent": UA})
-    with urllib.request.urlopen(req, timeout=timeout) as res:
-        return json.loads(res.read().decode("utf-8"))
+    last_err = None
+    for attempt in range(1, retries + 1):
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as res:
+                return json.loads(res.read().decode("utf-8"))
+        except (urllib.error.URLError, TimeoutError) as e:
+            last_err = e
+            if attempt < retries:
+                print(f"  ! 通信に失敗（{attempt}/{retries}回目）: {e} → 再試行します")
+                time.sleep(5 * attempt)
+    raise last_err
 
 
 def fetch_previews(track_ids):
